@@ -1,8 +1,6 @@
 # Monte Carlo coding homework for RBE 595
 import random
-
 class stochasticCleaningSim:
-
     def __init__(self):
         #World Size and start from problem statement
         self.maxState=5
@@ -38,3 +36,8 @@ class stochasticCleaningSim:
         else:
             return self.rMiddle
 
+if __name__ == '__main__':
+    simulator=stochasticCleaningSim()
+    print(simulator.curState)
+    print(simulator.takeAction(1))
+    print(simulator.curState)
