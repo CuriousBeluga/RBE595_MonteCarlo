@@ -2,7 +2,7 @@
 import random
 
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 class stochasticCleaningSim:
     def __init__(self):
@@ -70,32 +70,42 @@ class stochasticCleaningSim:
                     action = -1
             local_state = action + local_state
             # add chosen action to the policy
-            soft_e_policy.append((local_state,action))
+            soft_e_policy.append((local_state, action))
+            if local_state == 0 or local_state == 5:
+                break
 
-        value_function = np.zeros(6,2)
-        returns = np.zeros(6,2)
+
+        print(soft_e_policy)
+        value_function = np.zeros((6,2))
+        returns = np.zeros((6,2))
         G = 0
         y = .5
         iterations = 40
-
+        state_value = np.zeros((6,episodes))
+        num_states = 6
+        num_actions = 2
+        sa_count = np.zeros((num_states,num_actions))
         # main algorithm body
-        for i in range(episodes):
-            # agent's state
-            G = 0
+
+        # agent's state
+        G = 0
+        # length of soft_e_policy
+        for episode in range(episodes):
+
             # generate episode based on soft_e policy
             for t in range(0,len(soft_e_policy)):
-                state ,action = soft_e_policy[t]
+                state,action = soft_e_policy[t]
+
                 if (state, action) not in self.agent_state_action:  #check if state and action have already happened
                     G = G*y+self.takeAction(action,"sim")
                 self.agent_state_action.append((state,action)) # each state action index contains a list, i think
 
                 for state,action in self.agent_state_action:
-                    returns[state,action].append(G)
-                    # q-value = average of returns at that state and action
-                    value_function[state,action] = sum(returns[state,action])/len(returns[state,action])
+                    returns[state,action]+=(G)
+                    sa_count[state,action] +=1
+                    value_function[state,action] = returns[state,action]/sa_count[state,action]
+                    # self.first_visit_policy = np.zeros((num_states,num_actions))
 
-                    num_states,num_actions = value_function.shape
-                    self.first_visit_policy = np.zeros((num_states,num_actions))
                     for state in range(num_states):
                         action_star = np.argmax(value_function[state,:])
                         for action in range(num_actions):
@@ -104,13 +114,33 @@ class stochasticCleaningSim:
                             else:
                                 self.first_visit_policy[state,action] = epsilon/num_actions
 
+            #     # q-value = average of returns at that state and action
+            #     average_returns = np.divide(returns, np.maximum(1, np.sum(returns != 0, axis=1)[:, np.newaxis]))
+            # for state in range(num_states):
+            #     state_returns = [returns[s, a] for s, a in self.agent_state_action if s == state]
+            #     if state_returns:
+            #         state_value[state, episode] = np.mean(state_returns)
+
+        # Plot state values versus number of episodes
+
+        for state in range(num_states):
+            plt.plot(range(episodes), value_function[state, :], label=f'State {state}')
+
+        plt.xlabel('Number of Episodes')
+        plt.ylabel('State Value')
+        plt.legend()
+        plt.title('State Value vs. Number of Episodes')
+        plt.show()
+        # return state_value
 
 
 if __name__ == '__main__':
-    simulator=stochasticCleaningSim()
-    print(simulator.curState)
-    print(simulator.takeAction(1),"sim")
-    print(simulator.curState)
+    # simulator=stochasticCleaningSim()
+    # print(simulator.curState)
+    # print(simulator.takeAction(1),"sim")
+    # print(simulator.curState)
 
     # on_site_monte_carlo_procedure
 
+    on_policy_mc_agent=stochasticCleaningSim()
+    sim_state_value = on_policy_mc_agent.on_policy_monte_carlo(100,.5)
