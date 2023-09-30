@@ -24,6 +24,10 @@ class stochasticCleaningSim:
         # on policy-first visit parameters
         self.agent_state_action = []    #container list for state action pairs
         self.first_visit_policy= []
+
+    def resetSimulation(self):
+        self.curState=3
+
     def takeAction(self, u,index):
         #Changes state by action u, +1 or -1, and returns the reward associated with the state
         # (This can easily be changed to reward new state and reward if that is preferable, but new state is stored in simulator class) 
@@ -55,7 +59,8 @@ class stochasticCleaningSim:
         valueLists=[[(0,0),(0,0),(0,0),(0,0),(0,0),(0,0)]] #list of lists, [G Value, # of Entries for each state, i where state is index], jth list is the 
         #values at episode j (not 0 indexed, 0 episode is the assumption at start), this entry is the G values for 0th trial
         for i in range(episodes):
-            episodeValues=self.runEpisode(epsilon, valueLists[i-1]) #Returns the values of the states at first visits from an episode with the given Gs
+            self.resetSimulation()
+            episodeValues=self.runEpisode(epsilon) #Returns the values of the states at first visits from an episode with the given Gs
             valueLists[i]=self.updateValueList(valueLists[i-1], episodeValues)#updates the list of values according to G equations
         return valueLists
 
