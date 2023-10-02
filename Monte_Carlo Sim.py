@@ -1,6 +1,6 @@
 # Monte Carlo coding homework for RBE 595
+# Authors: Sean Tseng, Jonathan Landay
 import random
-
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -68,17 +68,6 @@ class stochasticCleaningSim:
         else:
             return self.rMiddle
 
-
-
-    # def firstVisitMonteCarlo(self, episodes, epsilon):
-    #     valueLists=[[(0,0),(0,0),(0,0),(0,0),(0,0),(0,0)]] #list of lists, [G Value, # of Entries for each state, i where state is index], jth list is the
-    #     #values at episode j (not 0 indexed, 0 episode is the assumption at start), this entry is the G values for 0th trial
-    #     for i in range(episodes):
-    #         self.resetSimulation()
-    #         episodeValues=self.runEpisode(epsilon) #Returns the values of the states at first visits from an episode with the given Gs
-    #         valueLists[i]=self.updateValueList(valueLists[i-1], episodeValues)#updates the list of values according to G equations
-    #     return valueLists
-
     def generate_policy(self):
         for state in range(self.num_state):
             possible_rewards = [self.takeAction(-1, "none"), self.takeAction(1, "none")]
@@ -96,23 +85,12 @@ class stochasticCleaningSim:
 
 
     def generate_episode(self):
-        self.curState = random.randint(0,5)
+        self.curState = random.randint(1,4)
         self.state_history =[self.curState]
         while True:     # loop until terminal state is reached
-            # if random.random() <= .2:
-            #     action = np.random.choice(self.num_actions)
-            # else:
+
             action = np.random.choice(self.num_actions,p=self.policy[self.curState])
             # highest_prob_item = np.argmax(self.policy[self.curState])
-            # if highest_prob_item == 0:
-            #     other_action = 1
-            # else:
-            #     other_action = 0
-            # prob = random.random()
-            # if prob <= self.policy[self.curState,highest_prob_item]:
-            #     action = highest_prob_item
-            # else:
-            #     action = other_action
 
             # print(f'Current state: {self.curState}')
             if action == 0:  # index 0 is action -1, index 1 is action +1
@@ -127,7 +105,7 @@ class stochasticCleaningSim:
                 self.reward_history.append(0)
                 break
 
-        print(f'This is the full state history: {self.state_history}')
+        # print(f'This is the full state history: {self.state_history}')
 
 
     def on_policy_monte_carlo(self,episodes,epsilon):
@@ -162,7 +140,7 @@ class stochasticCleaningSim:
             state_action_pairs = []
             for i in range(len(self.state_history)):
                 state_action_pairs.append([self.state_history[i],self.action_history[i]])
-            print(f'Episode {episode+1} state action pairs:{state_action_pairs}')
+            # print(f'Episode {episode+1} state action pairs:{state_action_pairs}')
             for t in reversed(range(0,len(self.state_history))):
 
                 current_reward = self.reward_history[t]
@@ -175,9 +153,16 @@ class stochasticCleaningSim:
                 if current_pair not in state_action_pairs[:t]:
                     state_counter[current_state,current_action] +=1
                     value_function[current_state,current_action] += (G-value_function[current_state,current_action]/state_counter[current_state][current_action])
-                # else:
-                #     value_function[current_state, current_action] = current_reward
+
+
                 episodic_values[episode,current_state] = value_function[current_state,current_action]
+                # # Carry over to the next episode
+                # if episode < episodes+1:
+                #     episodic_values[episode+1, current_state] = value_function[current_state, current_action]
+
+            # #
+            # for state in range(self.num_state):
+            #     episodic_values[episode+1,state] = value_function[state,]
 
             for state in range(num_states): # updating policy
                 action_star = np.argmax(value_function[state]) # find best action for each state
@@ -190,11 +175,11 @@ class stochasticCleaningSim:
                 # if action isn't the optimal one, use another equation
                 self.policy[state,other_action] = 1 - self.policy[state][action_star]
 
-            print(f'Episode {episode + 1} policy: {self.policy}')
+            # print(f'Episode {episode + 1} policy: {self.policy}')
             print(f'Episode {episode+1} complete')
-            print(episodic_values)
+            # print(episodic_values)
         self.resetSimulation()
-        return episodic_values
+        return episodic_values,self.policy
 
     def graphEpisodes(self, episodic_values):
         for i,state in enumerate(episodic_values.T): #Iterate over the columnic states for figure i
@@ -202,7 +187,7 @@ class stochasticCleaningSim:
             X=np.linspace(1,len(Y),len(Y)) #creates X  linspace equal to number of episodes from length of states
 
             plt.figure(i)
-            plt.title('State '+i+' G Value per episode')
+            plt.title(f'State {i} Value per episode')
             plt.plot(X,Y)
         plt.show()
 
@@ -216,6 +201,9 @@ if __name__ == '__main__':
 
     # on_site_monte_carlo_procedure
     epsilon = .5
-    episodes = 100
+    episodes = 1000
     on_policy_mc_agent=stochasticCleaningSim(epsilon)
-    sim_state_value = on_policy_mc_agent.on_policy_monte_carlo(episodes,epsilon)
+    sim_state_values,policy = on_policy_mc_agent.on_policy_monte_carlo(episodes,epsilon)
+    print(f'Optimal Values, (index = state): {sim_state_values[-1]}')
+    print(f'Here is the optimal policy:\n {policy}')
+    on_policy_mc_agent.graphEpisodes(sim_state_values)
