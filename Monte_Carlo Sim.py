@@ -196,6 +196,16 @@ class stochasticCleaningSim:
         self.resetSimulation()
         return episodic_values
 
+    def graphEpisodes(self, episodic_values):
+        for i,state in enumerate(episodic_values.T): #Iterate over the columnic states for figure i
+            Y=state
+            X=np.linspace(1,len(Y),len(Y)) #creates X  linspace equal to number of episodes from length of states
+
+            plt.figure(i)
+            plt.title('State '+i+' G Value per episode')
+            plt.plot(X,Y)
+        plt.show()
+
 
 
 if __name__ == '__main__':
