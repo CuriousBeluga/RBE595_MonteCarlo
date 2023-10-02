@@ -5,11 +5,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class stochasticCleaningSim:
-    def __init__(self):
+    def __init__(self,epsilon):
         #World Size and start from problem statement
         self.maxState=5
         self.minState=0
         self.curState=3
+        # number of states and actions
+        self.num_state = 6
+        self.num_actions = 2
         #probabilities to do non determ movement from problem statement
         self.pForward=0.8
         self.pStuck=0.15
@@ -23,30 +26,41 @@ class stochasticCleaningSim:
         self.mean = 0
         # on policy-first visit parameters
         self.agent_state_action = []    #container list for state action pairs
-        self.first_visit_policy= []
+        self.policy=np.ones((self.num_state,self.num_actions))*epsilon/self.num_actions
+        self.epsilon= epsilon
+        #s
+        self.action_history = []
+        self.reward_history = []
+        self.state_history = [self.curState]  # initialize with first state
 
     def resetSimulation(self):
         self.curState=3
+        self.action_history = []
+        self.reward_history = []
+        self.state_history = []
+
 
     def takeAction(self, u,index):
         #Changes state by action u, +1 or -1, and returns the reward associated with the state
         # (This can easily be changed to reward new state and reward if that is preferable, but new state is stored in simulator class) 
         if self.curState==self.minState or self.curState==self.maxState:
             return 0 #Returns 0 reward if starting at end state, and no move
-        action=u
         p=random.random()
         if p<=self.pForward:#Chance to go forward
-            action=action*1
+            action=u*1
         elif p<=self.pForward+self.pStuck:#Chance to stay stuck instead
-            action=action*0
+            action=u*0
         else:#Chance to go backwards instead
-            action=action*-1
+            action=u*-1
 
-        if index == "sim":   # if using takeAction for simulation, update position
+
+        if index == "sim":   # if using takeAction for simulation, append position, action and reward
             self.curState=self.curState+action
-        else:
-            pass
+            self.action_history.append(u)
+            self.state_history.append(self.curState)
 
+
+        # return reward
         if(self.curState==5):
             return self.r5
         elif(self.curState==0):
@@ -55,43 +69,75 @@ class stochasticCleaningSim:
             return self.rMiddle
 
 
-    def firstVisitMonteCarlo(self, episodes, epsilon):
-        valueLists=[[(0,0),(0,0),(0,0),(0,0),(0,0),(0,0)]] #list of lists, [G Value, # of Entries for each state, i where state is index], jth list is the 
-        #values at episode j (not 0 indexed, 0 episode is the assumption at start), this entry is the G values for 0th trial
-        for i in range(episodes):
-            self.resetSimulation()
-            episodeValues=self.runEpisode(epsilon) #Returns the values of the states at first visits from an episode with the given Gs
-            valueLists[i]=self.updateValueList(valueLists[i-1], episodeValues)#updates the list of values according to G equations
-        return valueLists
+
+    # def firstVisitMonteCarlo(self, episodes, epsilon):
+    #     valueLists=[[(0,0),(0,0),(0,0),(0,0),(0,0),(0,0)]] #list of lists, [G Value, # of Entries for each state, i where state is index], jth list is the
+    #     #values at episode j (not 0 indexed, 0 episode is the assumption at start), this entry is the G values for 0th trial
+    #     for i in range(episodes):
+    #         self.resetSimulation()
+    #         episodeValues=self.runEpisode(epsilon) #Returns the values of the states at first visits from an episode with the given Gs
+    #         valueLists[i]=self.updateValueList(valueLists[i-1], episodeValues)#updates the list of values according to G equations
+    #     return valueLists
+
+    def generate_policy(self):
+        for state in range(self.num_state):
+            possible_rewards = [self.takeAction(-1, "none"), self.takeAction(1, "none")]
+            best_action = np.argmax(possible_rewards)
+            if best_action ==0:
+                other_action = 1
+            else:
+                other_action = 0
+            epsilon = .9
+            # index 0 is movement of -1, index 1 is movement of +1
+            self.policy[state,best_action] = 1 -epsilon+epsilon/self.num_actions
+            self.policy[state,other_action] = 1 - self.policy[state,best_action]
+        print(f'This is the generated initial policy: {self.policy}')
+
+
+
+    def generate_episode(self):
+        self.curState = random.randint(0,5)
+        self.state_history =[self.curState]
+        while True:     # loop until terminal state is reached
+            # if random.random() <= .2:
+            #     action = np.random.choice(self.num_actions)
+            # else:
+            action = np.random.choice(self.num_actions,p=self.policy[self.curState])
+            # highest_prob_item = np.argmax(self.policy[self.curState])
+            # if highest_prob_item == 0:
+            #     other_action = 1
+            # else:
+            #     other_action = 0
+            # prob = random.random()
+            # if prob <= self.policy[self.curState,highest_prob_item]:
+            #     action = highest_prob_item
+            # else:
+            #     action = other_action
+
+            # print(f'Current state: {self.curState}')
+            if action == 0:  # index 0 is action -1, index 1 is action +1
+                action = -1
+            # print(f'Action taken: {action}')
+            reward = self.takeAction(action,"sim")
+            self.reward_history.append(reward)
+            # break clause
+            if self.curState == 0 or self.curState ==5:
+                # last action has nothing
+                self.action_history.append(0)
+                self.reward_history.append(0)
+                break
+
+        print(f'This is the full state history: {self.state_history}')
 
 
     def on_policy_monte_carlo(self,episodes,epsilon):
 
-        #row = state, column is action reward
-        soft_e_policy = []
-        #
-        local_state = 3
-        #Iterations for soft E policy
-        N = 50
+
         # generate a soft epsilon policy
-        for i in range(N):
 
-            if np.random.random() < epsilon:  # pick a number and compare against epsilon to determine random action
-                action = self.takeAction(np.random.choice([-1,1]),"e-soft")
-            else:  # choose the action from highest action-value pair
-                rewards = [self.takeAction(-1,"e-soft"),self.takeAction(1,"e-soft")]
-                action = np.argmax(rewards)
-                if action == 0:
-                    action = -1
-            local_state = action + local_state
-            # add chosen action to the policy
-            soft_e_policy.append((local_state, action))
-            if local_state == 0 or local_state == 5:
-                break
-
-
-        print(soft_e_policy)
         value_function = np.zeros((6,2))
+        # state visited container
+        state_counter = np.zeros((6,2))
         returns = np.zeros((6,2))
         G = 0
         y = .5
@@ -100,53 +146,56 @@ class stochasticCleaningSim:
         num_states = 6
         num_actions = 2
         sa_count = np.zeros((num_states,num_actions))
+        # episode to state value container, each row is an episode, each column of the row is the value of each state
+        episodic_values = np.zeros((episodes,num_states))
         # main algorithm body
 
-        # agent's state
         G = 0
-        # length of soft_e_policy
+        # initialize a policy using E-greedy
+        self.generate_policy()
+
         for episode in range(episodes):
+            # generate episode using policy
+            self.generate_episode()
 
-            # generate episode based on soft_e policy
-            for t in range(0,len(soft_e_policy)):
-                state,action = soft_e_policy[t]
 
-                if (state, action) not in self.agent_state_action:  #check if state and action have already happened
-                    G = G*y+self.takeAction(action,"sim")
-                self.agent_state_action.append((state,action)) # each state action index contains a list, i think
+            state_action_pairs = []
+            for i in range(len(self.state_history)):
+                state_action_pairs.append([self.state_history[i],self.action_history[i]])
+            print(f'Episode {episode+1} state action pairs:{state_action_pairs}')
+            for t in reversed(range(0,len(self.state_history))):
 
-                for state,action in self.agent_state_action:
-                    returns[state,action]+=(G)
-                    sa_count[state,action] +=1
-                    value_function[state,action] = returns[state,action]/sa_count[state,action]
-                    # self.first_visit_policy = np.zeros((num_states,num_actions))
+                current_reward = self.reward_history[t]
+                # print(f'This is the reward for state {self.state_history[t]}: {current_reward}')
+                G = G * y + current_reward
+                current_state = self.state_history[t]
+                current_action = self.action_history[t]
+                current_pair = [current_state,current_action]
 
-                    for state in range(num_states):
-                        action_star = np.argmax(value_function[state,:])
-                        for action in range(num_actions):
-                            if action == action_star:
-                                self.first_visit_policy[state,action] = 1 -epsilon + epsilon/num_actions
-                            else:
-                                self.first_visit_policy[state,action] = epsilon/num_actions
+                if current_pair not in state_action_pairs[:t]:
+                    state_counter[current_state,current_action] +=1
+                    value_function[current_state,current_action] += (G-value_function[current_state,current_action]/state_counter[current_state][current_action])
+                # else:
+                #     value_function[current_state, current_action] = current_reward
+                episodic_values[episode,current_state] = value_function[current_state,current_action]
 
-            #     # q-value = average of returns at that state and action
-            #     average_returns = np.divide(returns, np.maximum(1, np.sum(returns != 0, axis=1)[:, np.newaxis]))
-            # for state in range(num_states):
-            #     state_returns = [returns[s, a] for s, a in self.agent_state_action if s == state]
-            #     if state_returns:
-            #         state_value[state, episode] = np.mean(state_returns)
+            for state in range(num_states): # updating policy
+                action_star = np.argmax(value_function[state]) # find best action for each state
+                if action_star == 0:
+                    other_action = 1
+                else:
+                    other_action = 0
+                # if the action is the optimal one, then use one equation
+                self.policy[state,action_star] = 1 - self.epsilon + self.epsilon/self.num_actions
+                # if action isn't the optimal one, use another equation
+                self.policy[state,other_action] = 1 - self.policy[state][action_star]
 
-        # Plot state values versus number of episodes
+            print(f'Episode {episode + 1} policy: {self.policy}')
+            print(f'Episode {episode+1} complete')
+            print(episodic_values)
+        self.resetSimulation()
+        return episodic_values
 
-        for state in range(num_states):
-            plt.plot(range(episodes), value_function[state, :], label=f'State {state}')
-
-        plt.xlabel('Number of Episodes')
-        plt.ylabel('State Value')
-        plt.legend()
-        plt.title('State Value vs. Number of Episodes')
-        plt.show()
-        # return state_value
 
 
 if __name__ == '__main__':
@@ -156,6 +205,7 @@ if __name__ == '__main__':
     # print(simulator.curState)
 
     # on_site_monte_carlo_procedure
-
-    on_policy_mc_agent=stochasticCleaningSim()
-    sim_state_value = on_policy_mc_agent.on_policy_monte_carlo(100,.5)
+    epsilon = .5
+    episodes = 100
+    on_policy_mc_agent=stochasticCleaningSim(epsilon)
+    sim_state_value = on_policy_mc_agent.on_policy_monte_carlo(episodes,epsilon)
