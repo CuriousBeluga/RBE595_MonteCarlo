@@ -32,12 +32,16 @@ class stochasticCleaningSim:
         self.action_history = []
         self.reward_history = []
         self.state_history = [self.curState]  # initialize with first state
+        # state visited container
+        self.state_counter = np.zeros(6)
+        self.returns = np.zeros((6,2))
 
     def resetSimulation(self):
         self.curState=3
         self.action_history = []
         self.reward_history = []
         self.state_history = []
+        self.state_counter = np.zeros(6)
 
 
     def takeAction(self, u,index):
@@ -114,8 +118,7 @@ class stochasticCleaningSim:
         # generate a soft epsilon policy
 
         value_function = np.zeros((6,2))
-        # state visited container
-        state_counter = np.zeros((6,2))
+
         returns = np.zeros((6,2))
         G = 0
         y = .5
@@ -151,8 +154,8 @@ class stochasticCleaningSim:
                 current_pair = [current_state,current_action]
 
                 if current_pair not in state_action_pairs[:t]:
-                    state_counter[current_state,current_action] +=1
-                    value_function[current_state,current_action] += (G-value_function[current_state,current_action]/state_counter[current_state][current_action])
+                    self.state_counter[current_state] +=1
+                    value_function[current_state,current_action] += (G/self.state_counter[current_state])
 
 
                 episodic_values[episode,current_state] = value_function[current_state,current_action]
@@ -200,8 +203,8 @@ if __name__ == '__main__':
     # print(simulator.curState)
 
     # on_site_monte_carlo_procedure
-    epsilon = .5
-    episodes = 1000
+    epsilon = .7
+    episodes = 2000
     on_policy_mc_agent=stochasticCleaningSim(epsilon)
     sim_state_values,policy = on_policy_mc_agent.on_policy_monte_carlo(episodes,epsilon)
     print(f'Optimal Values, (index = state): {sim_state_values[-1]}')
