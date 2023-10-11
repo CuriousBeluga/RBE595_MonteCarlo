@@ -176,7 +176,7 @@ class stochasticCleaningSim:
                 # if the action is the optimal one, then use one equation
                 self.policy[state,action_star] = 1 - self.epsilon + self.epsilon/self.num_actions
                 # if action isn't the optimal one, use another equation
-                self.policy[state,other_action] = 1 - self.policy[state][action_star]
+                self.policy[state,other_action] = self.epsilon/self.num_actions
 
             # print(f'Episode {episode + 1} policy: {self.policy}')
             print(f'Episode {episode+1} complete')
